@@ -1,0 +1,42 @@
+.unsponsored-hidden {
+  display: none !important;
+}
+
+.unsponsored-dimmed {
+  filter: grayscale(1) opacity(0.38) !important;
+  transition: filter 0.15s ease;
+}
+
+.unsponsored-dimmed:hover,
+.unsponsored-dimmed:focus-within {
+  filter: none !important;
+}
+
+.unsponsored-outlined {
+  outline: 2px dashed #d32f2f !important;
+  outline-offset: 3px;
+}
+
+.unsponsored-pos {
+  position: relative !important;
+}
+
+.unsponsored-tag {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 20;
+  background: #c62828;
+  color: #fff;
+  font: 600 11px/1.2 "Segoe UI", system-ui, sans-serif;
+  letter-spacing: 0.01em;
+  padding: 3px 6px;
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.unsponsored-flash {
+  outline: 3px solid #e53935 !important;
+  outline-offset: 3px;
+  filter: none !important;
+}

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Unsponsored</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="top">
+      <h1>Unsponsored</h1>
+      <label class="switch">
+        <input id="enabled" type="checkbox" checked />
+        <span class="track" aria-hidden="true"></span>
+        <span id="stateLabel" class="state">Hiding</span>
+      </label>
+    </header>
+
+    <section class="card" aria-label="This page">
+      <div id="host" class="host">amazon.com</div>
+      <div class="sub">This page</div>
+      <ul class="cats">
+        <li>
+          <label>
+            <input type="checkbox" data-cat="products" checked />
+            <span>Sponsored products</span>
+          </label>
+          <span class="leader"></span>
+          <span class="count" data-count="products">0</span>
+        </li>
+        <li>
+          <label>
+            <input type="checkbox" data-cat="banners" checked />
+            <span>Brand banners and video</span>
+          </label>
+          <span class="leader"></span>
+          <span class="count" data-count="banners">0</span>
+        </li>
+        <li>
+          <label>
+            <input type="checkbox" data-cat="carousels" checked />
+            <span>Sponsored carousels</span>
+          </label>
+          <span class="leader"></span>
+          <span class="count" data-count="carousels">0</span>
+        </li>
+        <li>
+          <label>
+            <input type="checkbox" data-cat="display" checked />
+            <span>Display ads</span>
+          </label>
+          <span class="leader"></span>
+          <span class="count" data-count="display">0</span>
+        </li>
+        <li>
+          <label>
+            <input type="checkbox" data-cat="house" />
+            <span>Amazon house-brand promos</span>
+          </label>
+          <span class="leader"></span>
+          <span class="count" data-count="house">0</span>
+        </li>
+      </ul>
+      <div class="removed">
+        <span>Removed from this page</span>
+        <strong id="removed">0</strong>
+      </div>
+      <button id="flash" type="button">Outline removed listings for 5 seconds</button>
+    </section>
+
+    <div class="mode-row">
+      <span class="mode-label">Removed listings are</span>
+      <div class="seg" role="group" aria-label="Removed listings are">
+        <button type="button" data-mode="hidden" aria-pressed="true">Hidden</button>
+        <button type="button" data-mode="dimmed">Dimmed</button>
+        <button type="button" data-mode="outlined">Outlined</button>
+      </div>
+    </div>
+
+    <p id="since" class="since">0 sponsored listings caught since today</p>
+
+    <section class="log">
+      <label class="switch log-switch">
+        <input id="logEnabled" type="checkbox" />
+        <span class="track" aria-hidden="true"></span>
+        <span class="log-title">Keep a research log</span>
+      </label>
+      <p id="logCopy" class="log-copy">
+        0 listings and 0 pages logged. Stored only in this browser.
+      </p>
+      <div class="exports">
+        <button type="button" id="csvListings">Export listings CSV</button>
+        <button type="button" id="csvPages">Export pages CSV</button>
+        <button type="button" id="exportJson">Export JSON</button>
+        <button type="button" id="clearLog" class="danger">Clear log</button>
+      </div>
+    </section>
+    <p id="note" class="note" hidden></p>
+    <script src="engine.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

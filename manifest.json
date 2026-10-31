@@ -1,0 +1,75 @@
+{
+  "manifest_version": 3,
+  "name": "Unsponsored",
+  "version": "1.0.0",
+  "description": "Hide, dim, or outline sponsored listings on Amazon. Stored only in this browser.",
+  "permissions": ["storage", "activeTab"],
+  "action": {
+    "default_title": "Unsponsored",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://amazon.com/*",
+        "*://www.amazon.com/*",
+        "*://amazon.ca/*",
+        "*://www.amazon.ca/*",
+        "*://amazon.com.mx/*",
+        "*://www.amazon.com.mx/*",
+        "*://amazon.com.br/*",
+        "*://www.amazon.com.br/*",
+        "*://amazon.co.uk/*",
+        "*://www.amazon.co.uk/*",
+        "*://amazon.de/*",
+        "*://www.amazon.de/*",
+        "*://amazon.fr/*",
+        "*://www.amazon.fr/*",
+        "*://amazon.it/*",
+        "*://www.amazon.it/*",
+        "*://amazon.es/*",
+        "*://www.amazon.es/*",
+        "*://amazon.nl/*",
+        "*://www.amazon.nl/*",
+        "*://amazon.se/*",
+        "*://www.amazon.se/*",
+        "*://amazon.pl/*",
+        "*://www.amazon.pl/*",
+        "*://amazon.com.be/*",
+        "*://www.amazon.com.be/*",
+        "*://amazon.co.jp/*",
+        "*://www.amazon.co.jp/*",
+        "*://amazon.com.au/*",
+        "*://www.amazon.com.au/*",
+        "*://amazon.in/*",
+        "*://www.amazon.in/*",
+        "*://amazon.sg/*",
+        "*://www.amazon.sg/*",
+        "*://amazon.ae/*",
+        "*://www.amazon.ae/*",
+        "*://amazon.sa/*",
+        "*://www.amazon.sa/*",
+        "*://amazon.com.tr/*",
+        "*://www.amazon.com.tr/*",
+        "*://amazon.eg/*",
+        "*://www.amazon.eg/*",
+        "*://amazon.cn/*",
+        "*://www.amazon.cn/*"
+      ],
+      "js": ["engine.js", "content.js"],
+      "css": ["content.css"],
+      "run_at": "document_end"
+    }
+  ]
+}
