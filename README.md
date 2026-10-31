@@ -52,7 +52,7 @@ A `MutationObserver` watches the page, with a slow rescan as backup, so infinite
 
 ## Research log
 
-**Keep a research log** is off until you turn it on. When it is on, listing rows and shopping pages are stored only in this browser. The footer count (“N sponsored listings caught since …”) is the running total since the extension first saved settings. **Clear log** deletes the exportable rows and asks first. It does not reset that running total.
+**Keep a research log** is off until you turn it on. When it is on, each row is one sponsored product or one ad unit, stored only in this browser. A product row keeps that card’s ASIN and product title. Feedback controls, carousel headings such as “Customers also bought”, and blank titles are not rows. A page’s listing count is the number of rows stored for that page. The footer count (“N sponsored listings caught since …”) counts those same units. **Clear log** deletes the exportable rows and asks first. It does not reset that running total.
 
 Exports: listings CSV, pages CSV, and JSON. Nothing is uploaded.
 
@@ -69,4 +69,4 @@ npm install jsdom
 node --test tests/engine.test.js
 ```
 
-The checks cover sponsored cards versus organic Amazon Basics results, brand video, sponsored carousels, display iframes versus the footer tracking pixel, house-brand modules, a German “Gesponsert” label, and a card inserted after the first scan.
+The checks cover sponsored cards versus organic Amazon Basics results, brand video, sponsored carousels, display iframes versus the footer tracking pixel, house-brand modules, a German “Gesponsert” label, and a card inserted after the first scan. `tests/fixtures/sponsored-results.html` is a local page. The log check fails if a caught product is missing from the JSON or listings CSV, or if a feedback control, carousel heading, or blank title is stored. It does not open Brave or amazon.com.

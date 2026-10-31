@@ -27,6 +27,8 @@
   let flashTimer = 0;
   let saveTimer = 0;
   let scanTimer = 0;
+  let skipKeys = [];
+  let skipUrl = "";
 
   function loadSettings() {
     return new Promise(function (resolve) {
@@ -74,12 +76,7 @@
     clearTimeout(saveTimer);
     saveTimer = setTimeout(function () {
       if (!settings) return;
-      chrome.storage.local.set({
-        lifetime: settings.lifetime,
-        seen: settings.seen.slice(-4000),
-        listings: settings.listings.slice(-2000),
-        pages: settings.pages.slice(-500),
-      });
+      chrome.storage.local.set(engine.logSnapshot(settings));
     }, 400);
   }
 
@@ -145,63 +142,25 @@
     });
   }
 
-  function isShoppingUrl(url) {
-    return /\/s([/?]|$)/.test(url) || /\/dp\/|\/gp\/product\/|\/gp\/aw\/d\//.test(url);
-  }
-
   function remember() {
     if (!settings) return;
     const pageUrl = location.href.split("#")[0];
-    const seen = new Set(settings.seen);
-    let changed = false;
-    current.forEach(function (unit) {
-      if (!acted(unit)) return;
-      const sig = engine.signature(unit, pageUrl);
-      if (seen.has(sig)) return;
-      seen.add(sig);
-      settings.lifetime += 1;
-      changed = true;
-      if (settings.logEnabled) {
-        settings.listings.push({
-          loggedAt: new Date().toISOString(),
-          pageUrl: pageUrl,
-          pageTitle: document.title,
-          category: unit.category,
-          asin: unit.asin || "",
-          title: unit.title || "",
-          mode: settings.mode,
-        });
-      }
+    if (skipUrl && skipUrl !== pageUrl) {
+      skipKeys = [];
+      skipUrl = "";
+    }
+    const result = engine.recordCaught(settings, current, {
+      pageUrl: pageUrl,
+      pageTitle: document.title,
+      now: new Date().toISOString(),
+      skipKeys: skipKeys,
     });
-    if (settings.logEnabled && (changed || isShoppingUrl(pageUrl) || current.some(acted))) {
-      let page = settings.pages.find(function (entry) {
-        return entry.url === pageUrl;
-      });
-      const listingCount = settings.listings.filter(function (entry) {
-        return entry.pageUrl === pageUrl;
-      }).length;
-      if (!page && (changed || isShoppingUrl(pageUrl) || listingCount > 0)) {
-        page = {
-          url: pageUrl,
-          title: document.title,
-          loggedAt: new Date().toISOString(),
-          listingCount: listingCount,
-        };
-        settings.pages.push(page);
-        changed = true;
-      } else if (page && (page.listingCount !== listingCount || page.title !== document.title)) {
-        page.listingCount = listingCount;
-        page.title = document.title;
-        changed = true;
-      }
-    }
-    if (changed) {
-      settings.seen = Array.from(seen).slice(-4000);
-      if (settings.listings.length > 2000) {
-        settings.listings = settings.listings.slice(-2000);
-      }
-      persistSoon();
-    }
+    if (!result.changed) return;
+    settings.lifetime = result.log.lifetime;
+    settings.seen = result.log.seen;
+    settings.listings = result.log.listings;
+    settings.pages = result.log.pages;
+    persistSoon();
   }
 
   function publish() {
@@ -278,11 +237,34 @@
 
   chrome.storage.onChanged.addListener(function (changes, area) {
     if (area !== "local" || !settings) return;
-    ["enabled", "mode", "categories", "logEnabled", "since", "lifetime", "seen", "listings", "pages"].forEach(
-      function (key) {
-        if (changes[key]) settings[key] = changes[key].newValue;
-      }
-    );
+    ["enabled", "mode", "categories", "logEnabled", "since"].forEach(function (key) {
+      if (changes[key]) settings[key] = changes[key].newValue;
+    });
+    if (
+      changes.logEnabled &&
+      changes.logEnabled.newValue &&
+      !changes.logEnabled.oldValue
+    ) {
+      skipKeys = [];
+      skipUrl = "";
+    }
+    const clearing =
+      changes.listings &&
+      Array.isArray(changes.listings.newValue) &&
+      changes.listings.newValue.length === 0 &&
+      changes.pages &&
+      Array.isArray(changes.pages.newValue) &&
+      changes.pages.newValue.length === 0 &&
+      !changes.lifetime &&
+      !changes.seen;
+    if (clearing) {
+      skipUrl = location.href.split("#")[0];
+      skipKeys = (settings.listings || []).map(function (row) {
+        return engine.listingKey(row);
+      });
+      settings.listings = [];
+      settings.pages = [];
+    }
     if (settings.categories) {
       settings.categories = Object.assign({}, DEFAULTS.categories, settings.categories);
     }

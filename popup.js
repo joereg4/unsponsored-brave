@@ -58,18 +58,6 @@ function plural(n, word) {
   return n + " " + word + (n === 1 ? "" : "s");
 }
 
-function csvCell(value) {
-  const text = value == null ? "" : String(value);
-  if (/[",\n]/.test(text)) return '"' + text.replace(/"/g, '""') + '"';
-  return text;
-}
-
-function toCsv(rows) {
-  return rows.map(function (row) {
-    return row.map(csvCell).join(",");
-  }).join("\n");
-}
-
 function download(filename, text, type) {
   const blob = new Blob([text], { type: type });
   const url = URL.createObjectURL(blob);
@@ -101,12 +89,11 @@ function render() {
   const caught = settings.lifetime || 0;
   sinceEl.textContent =
     plural(caught, "sponsored listing") + " caught since " + formatSince(settings.since);
-  const listings = (settings.listings || []).length;
-  const pages = (settings.pages || []).length;
+  const summary = engine.logSummary(settings);
   logCopy.textContent =
-    plural(listings, "listing") +
+    plural(summary.listings, "listing") +
     " and " +
-    plural(pages, "page") +
+    plural(summary.pages, "page") +
     " logged. Stored only in this browser.";
 }
 
@@ -188,44 +175,16 @@ document.querySelector("#flash").addEventListener("click", async function () {
 });
 
 document.querySelector("#csvListings").addEventListener("click", function () {
-  const rows = [
-    ["loggedAt", "pageUrl", "pageTitle", "category", "asin", "title", "mode"],
-  ];
-  (settings.listings || []).forEach(function (item) {
-    rows.push([
-      item.loggedAt,
-      item.pageUrl,
-      item.pageTitle,
-      item.category,
-      item.asin,
-      item.title,
-      item.mode,
-    ]);
-  });
-  download("unsponsored-listings.csv", toCsv(rows) + "\n", "text/csv");
+  download("unsponsored-listings.csv", engine.listingsCsv(settings.listings), "text/csv");
 });
 
 document.querySelector("#csvPages").addEventListener("click", function () {
-  const rows = [["loggedAt", "url", "title", "listingCount"]];
-  (settings.pages || []).forEach(function (item) {
-    rows.push([item.loggedAt, item.url, item.title, item.listingCount]);
-  });
-  download("unsponsored-pages.csv", toCsv(rows) + "\n", "text/csv");
+  download("unsponsored-pages.csv", engine.pagesCsv(settings), "text/csv");
 });
 
 document.querySelector("#exportJson").addEventListener("click", function () {
-  const payload = {
-    exportedAt: new Date().toISOString(),
-    since: settings.since,
-    lifetime: settings.lifetime || 0,
-    listings: settings.listings || [],
-    pages: settings.pages || [],
-  };
-  download(
-    "unsponsored-log.json",
-    JSON.stringify(payload, null, 2),
-    "application/json"
-  );
+  const payload = engine.exportLog(settings, new Date().toISOString());
+  download("unsponsored-log.json", JSON.stringify(payload, null, 2), "application/json");
 });
 
 document.querySelector("#clearLog").addEventListener("click", function () {

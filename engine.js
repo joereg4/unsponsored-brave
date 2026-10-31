@@ -330,16 +330,67 @@ function visibleText(el) {
   return value.replace(/\s+/g, " ").trim();
 }
 
-function unitTitle(el) {
-  const labelled = el.querySelector(
-    "[aria-label*='Sponsored ad from'], a[aria-label*='Sponsored'], [aria-label*='Sponsored video']"
-  );
-  if (labelled) {
-    const aria = (labelled.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim();
-    if (aria) return aria.slice(0, 180);
+function cleanText(text) {
+  return String(text || "").replace(/\s+/g, " ").trim();
+}
+
+function junkTitle(text) {
+  const value = cleanText(text);
+  if (!value) return true;
+  if (LABEL_RE.test(value)) return true;
+  if (/^sponsored video\b/i.test(value)) return true;
+  if (/leave feedback|feedback on sponsored/i.test(value)) return true;
+  if (
+    /^(products related to this item|related products with free delivery|customers also bought|more from frequently bought brands|frequently bought together)[.…\s]*$/i.test(
+      value
+    )
+  ) {
+    return true;
   }
-  const heading = sectionHeading(el) || el.querySelector("h2, h3, .a-carousel-heading");
-  return (visibleText(heading) || visibleText(el)).slice(0, 180);
+  return false;
+}
+
+function brandTitle(el) {
+  if (!el || !el.querySelectorAll) return "";
+  const nodes = el.querySelectorAll("[aria-label]");
+  for (let i = 0; i < nodes.length; i++) {
+    const aria = cleanText(nodes[i].getAttribute("aria-label"));
+    if (/^sponsored ad from\b/i.test(aria) && !junkTitle(aria)) return aria.slice(0, 180);
+  }
+  return "";
+}
+
+function cardTitle(el) {
+  if (!el || !el.querySelectorAll) return "";
+  const selectors = [
+    "h2 a span",
+    "h2 span",
+    "h2",
+    "h3 a span",
+    "h3",
+    ".a-size-medium",
+    ".a-size-base-plus",
+    ".a-truncate-full",
+    ".p13n-sc-truncate",
+    ".p13n-sc-truncated",
+    "a.a-link-normal span",
+    "a.a-link-normal",
+  ];
+  for (let s = 0; s < selectors.length; s++) {
+    const nodes = el.querySelectorAll(selectors[s]);
+    for (let i = 0; i < nodes.length; i++) {
+      const text = cleanText(visibleText(nodes[i]));
+      if (text.length < 2 || text.length > 180 || junkTitle(text)) continue;
+      return text.slice(0, 180);
+    }
+  }
+  const brand = brandTitle(el);
+  if (brand) return brand;
+  return "";
+}
+
+function unitTitle(el) {
+  return cardTitle(el);
 }
 
   function unitAsin(el) {
@@ -408,6 +459,316 @@ function unitTitle(el) {
     return [url, unit.category, unit.asin || "", (unit.title || "").slice(0, 80)].join("|");
   }
 
+  function isShoppingUrl(url) {
+    return /\/s([/?]|$)/.test(url) || /\/dp\/|\/gp\/product\/|\/gp\/aw\/d\//.test(url);
+  }
+
+  function isCaught(unit, settings) {
+    if (!settings || !settings.enabled || !unit) return false;
+    const cats = settings.categories || {};
+    return !!cats[unit.category];
+  }
+
+  function productCards(container) {
+    if (!container || !container.getAttribute) return [];
+    const own = container.getAttribute("data-asin") || "";
+    if (/^[A-Z0-9]{10}$/.test(own) && asinCount(container) === 1) return [container];
+    const cards = [];
+    if (!container.querySelectorAll) return cards;
+    container.querySelectorAll("[data-asin]").forEach(function (node) {
+      const asin = node.getAttribute("data-asin") || "";
+      if (!/^[A-Z0-9]{10}$/.test(asin)) return;
+      if (asinCount(node) !== 1) return;
+      cards.push(node);
+    });
+    return cards.filter(function (node) {
+      return !cards.some(function (other) {
+        return other !== node && other.contains(node);
+      });
+    });
+  }
+
+  function loggableRows(unit) {
+    const el = unit && unit.el;
+    if (!el) return [];
+    const cards = productCards(el);
+    const brand = brandTitle(el);
+    if (brand && cards.length >= 2) {
+      return [
+        {
+          category: unit.category === "products" ? "carousels" : unit.category,
+          title: brand,
+          asin: "",
+        },
+      ];
+    }
+    if (cards.length >= 1) {
+      return cards
+        .map(function (card) {
+          return {
+            category: "products",
+            title: cardTitle(card),
+            asin: card.getAttribute("data-asin") || "",
+          };
+        })
+        .filter(function (row) {
+          return row.asin && !junkTitle(row.title);
+        });
+    }
+    const title = cardTitle(el);
+    if (!junkTitle(title)) {
+      return [{ category: unit.category, title: title, asin: unit.asin || "" }];
+    }
+    return [];
+  }
+
+  function rowKey(row, pageUrl) {
+    const url = String(pageUrl || row.pageUrl || "").split("#")[0];
+    if (row && row.asin) return url + "|asin|" + row.asin;
+    return [url, (row && row.category) || "", "", cleanText(row && row.title).slice(0, 80)].join("|");
+  }
+
+  function listingKey(entry) {
+    return rowKey(entry, entry && entry.pageUrl);
+  }
+
+  function legacyKey(row, pageUrl) {
+    const url = String(pageUrl || "").split("#")[0];
+    return [url, (row && row.category) || "", (row && row.asin) || "", cleanText(row && row.title).slice(0, 80)].join(
+      "|"
+    );
+  }
+
+  function usableListing(entry) {
+    return !!(entry && entry.title && !junkTitle(entry.title));
+  }
+
+  function copyListing(entry) {
+    return {
+      loggedAt: entry.loggedAt,
+      pageUrl: entry.pageUrl,
+      pageTitle: entry.pageTitle || "",
+      category: entry.category,
+      asin: entry.asin || "",
+      title: entry.title,
+      mode: entry.mode || "",
+    };
+  }
+
+  function copyPage(page) {
+    return {
+      url: page.url,
+      title: page.title || "",
+      loggedAt: page.loggedAt,
+      listingCount: page.listingCount || 0,
+    };
+  }
+
+  function parseSeen(sig) {
+    const parts = String(sig || "").split("|");
+    for (let i = 0; i < parts.length - 2; i++) {
+      if (CATEGORIES.indexOf(parts[i]) === -1) continue;
+      return {
+        category: parts[i],
+        asin: parts[i + 1] || "",
+        title: parts.slice(i + 2).join("|"),
+      };
+    }
+    return null;
+  }
+
+  function csvCell(value) {
+    const text = value == null ? "" : String(value);
+    if (/[",\n]/.test(text)) return '"' + text.replace(/"/g, '""') + '"';
+    return text;
+  }
+
+  function toCsv(rows) {
+    return (
+      rows
+        .map(function (row) {
+          return row.map(csvCell).join(",");
+        })
+        .join("\n") + "\n"
+    );
+  }
+
+  function logSnapshot(state) {
+    return {
+      lifetime: (state && state.lifetime) || 0,
+      seen: ((state && state.seen) || []).slice(-4000),
+      listings: ((state && state.listings) || []).slice(-2000).map(copyListing),
+      pages: ((state && state.pages) || []).slice(-500).map(copyPage),
+    };
+  }
+
+  function listingCountFor(listings, pageUrl) {
+    return listings.filter(function (entry) {
+      return entry.pageUrl === pageUrl;
+    }).length;
+  }
+
+  function alignPage(entry, listings, now) {
+    const rows = listings.filter(function (row) {
+      return row.pageUrl === entry.url;
+    });
+    let newest = "";
+    rows.forEach(function (row) {
+      if (row.loggedAt && row.loggedAt > newest) newest = row.loggedAt;
+    });
+    return {
+      url: entry.url,
+      title: entry.title || "",
+      loggedAt: rows.length && newest ? newest : entry.loggedAt || now,
+      listingCount: rows.length,
+    };
+  }
+
+  function recordCaught(state, units, page) {
+    const source = state || {};
+    const info = page || {};
+    const pageUrl = String(info.pageUrl || "").split("#")[0];
+    const pageTitle = info.pageTitle || "";
+    const now = info.now || new Date().toISOString();
+    const logEnabled = !!source.logEnabled;
+    const skip = new Set(info.skipKeys || []);
+    const seen = new Set(source.seen || []);
+    let lifetime = source.lifetime || 0;
+    let removed = 0;
+    Array.from(seen).forEach(function (sig) {
+      const parsed = parseSeen(sig);
+      if (!parsed || parsed.asin || !junkTitle(parsed.title)) return;
+      seen.delete(sig);
+      removed += 1;
+    });
+    lifetime = Math.max(0, lifetime - removed);
+
+    let listings = (source.listings || []).filter(usableListing).map(copyListing);
+    const pages = (source.pages || []).map(copyPage);
+
+    function rememberRow(row) {
+      const key = rowKey(row, pageUrl);
+      if (skip.has(key)) return;
+      const already =
+        seen.has(key) || seen.has(legacyKey(row, pageUrl)) || (row.asin && seen.has(pageUrl + "|asin|" + row.asin));
+      if (!already) lifetime += 1;
+      seen.add(key);
+      if (!logEnabled) return;
+      const inList = listings.some(function (entry) {
+        return listingKey(entry) === key;
+      });
+      if (inList) return;
+      listings.push({
+        loggedAt: now,
+        pageUrl: pageUrl,
+        pageTitle: pageTitle,
+        category: row.category,
+        asin: row.asin || "",
+        title: row.title,
+        mode: source.mode || "",
+      });
+    }
+
+    (units || []).forEach(function (unit) {
+      if (!isCaught(unit, source)) return;
+      loggableRows(unit).forEach(rememberRow);
+    });
+
+    if (listings.length > 2000) listings = listings.slice(-2000);
+
+    for (let i = 0; i < pages.length; i++) {
+      const aligned = alignPage(pages[i], listings, now);
+      if (pages[i].url === pageUrl && pageTitle) aligned.title = pageTitle;
+      pages[i] = aligned;
+    }
+
+    if (logEnabled && pageUrl) {
+      let pageEntry = null;
+      for (let i = 0; i < pages.length; i++) {
+        if (pages[i].url === pageUrl) pageEntry = pages[i];
+      }
+      const count = listingCountFor(listings, pageUrl);
+      if (!pageEntry && (count > 0 || isShoppingUrl(pageUrl))) {
+        pages.push(
+          alignPage(
+            {
+              url: pageUrl,
+              title: pageTitle,
+              loggedAt: now,
+              listingCount: 0,
+            },
+            listings,
+            now
+          )
+        );
+        if (pageTitle) pages[pages.length - 1].title = pageTitle;
+      }
+    }
+
+    const next = {
+      enabled: !!source.enabled,
+      mode: source.mode || "hidden",
+      categories: source.categories,
+      logEnabled: logEnabled,
+      since: source.since || null,
+      lifetime: lifetime,
+      seen: Array.from(seen).slice(-4000),
+      listings: listings,
+      pages: pages.slice(-500),
+    };
+    const prevSnap = JSON.stringify(
+      logSnapshot({
+        lifetime: source.lifetime || 0,
+        seen: source.seen || [],
+        listings: source.listings || [],
+        pages: source.pages || [],
+      })
+    );
+    return {
+      changed: JSON.stringify(logSnapshot(next)) !== prevSnap,
+      log: next,
+    };
+  }
+
+  function exportLog(state, exportedAt) {
+    const listings = ((state && state.listings) || []).filter(usableListing).map(copyListing);
+    const pages = ((state && state.pages) || []).map(function (page) {
+      return alignPage(page, listings, page.loggedAt);
+    });
+    return {
+      exportedAt: exportedAt,
+      since: (state && state.since) || null,
+      lifetime: (state && state.lifetime) || 0,
+      listings: listings,
+      pages: pages,
+    };
+  }
+
+  function listingsCsv(listings) {
+    const rows = [["loggedAt", "pageUrl", "pageTitle", "category", "asin", "title", "mode"]];
+    (listings || []).filter(usableListing).forEach(function (item) {
+      rows.push([item.loggedAt, item.pageUrl, item.pageTitle, item.category, item.asin, item.title, item.mode]);
+    });
+    return toCsv(rows);
+  }
+
+  function pagesCsv(state) {
+    const exported = exportLog(state, "");
+    const rows = [["loggedAt", "url", "title", "listingCount"]];
+    exported.pages.forEach(function (item) {
+      rows.push([item.loggedAt, item.url, item.title, item.listingCount]);
+    });
+    return toCsv(rows);
+  }
+
+  function logSummary(state) {
+    const exported = exportLog(state, "");
+    return {
+      listings: exported.listings.length,
+      pages: exported.pages.length,
+    };
+  }
+
   return {
     CATEGORIES: CATEGORIES,
     AMAZON_HOSTS: AMAZON_HOSTS,
@@ -418,5 +779,12 @@ function unitTitle(el) {
     signature: signature,
     classify: classify,
     isLabelCandidate: isLabelCandidate,
+    recordCaught: recordCaught,
+    exportLog: exportLog,
+    listingsCsv: listingsCsv,
+    pagesCsv: pagesCsv,
+    logSummary: logSummary,
+    logSnapshot: logSnapshot,
+    listingKey: listingKey,
   };
 });
