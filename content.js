@@ -1,7 +1,8 @@
-/* Applies Unsponsored on Amazon retail pages. Local storage only. */
+/* Applies Unsponsored on Amazon and LinkedIn pages. Local storage only. */
 (function () {
   const engine = globalThis.UnsponsoredEngine;
-  if (!engine || !engine.retailHost(location.hostname)) return;
+  const site = engine && engine.siteFor(location.hostname);
+  if (!engine || !site) return;
 
   const DEFAULTS = {
     enabled: true,
@@ -12,6 +13,8 @@
       carousels: true,
       display: true,
       house: false,
+      feed: true,
+      rail: true,
     },
     logEnabled: false,
     since: null,
@@ -168,7 +171,7 @@
     try {
       chrome.runtime.sendMessage({
         type: "unsponsored:status",
-        host: engine.retailHost(location.hostname),
+        host: engine.pageHost(location.hostname),
         url: location.href.split("#")[0],
         counts: counts,
         removed: engine.removedTotal(counts, settings),
@@ -180,7 +183,7 @@
 
   function scan() {
     if (!settings) return;
-    current = engine.findUnits(document).filter(function (unit) {
+    current = engine.findUnits(document, site).filter(function (unit) {
       return unit.el && unit.el.isConnected !== false;
     });
     apply();
@@ -216,7 +219,7 @@
     if (message.type === "unsponsored:getStatus") {
       const counts = engine.countUnits(current);
       sendResponse({
-        host: engine.retailHost(location.hostname),
+        host: engine.pageHost(location.hostname),
         url: location.href.split("#")[0],
         counts: counts,
         removed: engine.removedTotal(counts, settings),

@@ -4,7 +4,7 @@
   if (typeof module === "object" && module.exports) module.exports = api;
   root.UnsponsoredEngine = api;
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
-  const CATEGORIES = ["products", "banners", "carousels", "display", "house"];
+  const CATEGORIES = ["products", "banners", "carousels", "display", "house", "feed", "rail"];
 
   const AMAZON_HOSTS = new Set([
     "amazon.com",
@@ -75,6 +75,28 @@
       .toLowerCase()
       .replace(/^(www|smile)\./, "");
     return AMAZON_HOSTS.has(host) ? host : null;
+  }
+
+  function linkedinHost(hostname) {
+    if (!hostname) return null;
+    const host = String(hostname).toLowerCase().replace(/^www\./, "");
+    return host === "linkedin.com" ? host : null;
+  }
+
+  function siteFor(hostname) {
+    if (retailHost(hostname)) return "amazon";
+    if (linkedinHost(hostname)) return "linkedin";
+    return null;
+  }
+
+  function pageHost(hostname) {
+    return retailHost(hostname) || linkedinHost(hostname);
+  }
+
+  const finders = {};
+
+  function registerFinder(site, finder) {
+    finders[site] = finder;
   }
 
   function textOf(el) {
@@ -402,7 +424,7 @@ function unitTitle(el) {
     return /^[A-Z0-9]{10}$/.test(value) ? value : "";
   }
 
-  function findUnits(root) {
+  function findAmazonUnits(root) {
     const map = new Map();
     collectMarkers(root).forEach(function (marker) {
       const el = containerFor(marker);
@@ -438,8 +460,17 @@ function unitTitle(el) {
     });
   }
 
+  function findUnits(root, site) {
+    const which = site || "amazon";
+    if (which === "linkedin") return finders.linkedin ? finders.linkedin(root) : [];
+    return findAmazonUnits(root);
+  }
+
   function countUnits(units) {
-    const counts = { products: 0, banners: 0, carousels: 0, display: 0, house: 0 };
+    const counts = {};
+    CATEGORIES.forEach(function (key) {
+      counts[key] = 0;
+    });
     units.forEach(function (unit) {
       if (counts[unit.category] != null) counts[unit.category] += 1;
     });
@@ -488,9 +519,49 @@ function unitTitle(el) {
     });
   }
 
+  const LINKEDIN_LABELS = [
+    "promoted",
+    "sponsored",
+    "ad",
+    "anzeige",
+    "gesponsert",
+    "dipromosikan",
+    "propagováno",
+    "promoveret",
+    "promocionado",
+    "patrocinado",
+    "促銷內容",
+    "广告",
+    "post sponsorisé",
+    "프로모션",
+    "post sponsorizzato",
+    "プロモーション",
+    "treść promowana",
+    "promovat",
+    "продвигается",
+    "marknadsfört",
+    "nai-promote",
+    "ได้รับการโปรโมท",
+    "öne çıkarılan içerik",
+    "gepromoot",
+    "الترويج",
+  ];
+
+  function linkedinLabelTitle(text) {
+    const value = cleanText(text).toLowerCase();
+    if (!value || value.length > 80) return false;
+    if (/^promoted by\b/.test(value)) return true;
+    return LINKEDIN_LABELS.indexOf(value) !== -1;
+  }
+
   function loggableRows(unit) {
     const el = unit && unit.el;
     if (!el) return [];
+    if (unit.category === "feed" || unit.category === "rail") {
+      const title = cleanText(unit.title);
+      if (!title || junkTitle(title) || linkedinLabelTitle(title)) return [];
+      return [{ category: unit.category, title: title.slice(0, 180), asin: "" }];
+    }
     const cards = productCards(el);
     const brand = brandTitle(el);
     if (brand && cards.length >= 2) {
@@ -773,6 +844,9 @@ function unitTitle(el) {
     CATEGORIES: CATEGORIES,
     AMAZON_HOSTS: AMAZON_HOSTS,
     retailHost: retailHost,
+    siteFor: siteFor,
+    pageHost: pageHost,
+    registerFinder: registerFinder,
     findUnits: findUnits,
     countUnits: countUnits,
     removedTotal: removedTotal,

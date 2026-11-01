@@ -136,6 +136,10 @@ h1 {
   min-height: 26px;
 }
 
+.cats li[hidden] {
+  display: none;
+}
+
 .cats label {
   display: flex;
   align-items: center;

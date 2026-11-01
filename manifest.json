@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Unsponsored",
   "version": "1.0.0",
-  "description": "Hide, dim, or outline sponsored listings on Amazon. Stored only in this browser.",
+  "description": "Hide, dim, or outline sponsored listings on Amazon and LinkedIn. Stored only in this browser.",
   "permissions": ["storage", "activeTab"],
   "action": {
     "default_title": "Unsponsored",
@@ -65,9 +65,11 @@
         "*://amazon.eg/*",
         "*://www.amazon.eg/*",
         "*://amazon.cn/*",
-        "*://www.amazon.cn/*"
+        "*://www.amazon.cn/*",
+        "*://linkedin.com/*",
+        "*://www.linkedin.com/*"
       ],
-      "js": ["engine.js", "content.js"],
+      "js": ["engine.js", "linkedin.js", "content.js"],
       "css": ["content.css"],
       "run_at": "document_end"
     }

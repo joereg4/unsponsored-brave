@@ -9,6 +9,8 @@ const DEFAULTS = {
     carousels: true,
     display: true,
     house: false,
+    feed: true,
+    rail: true,
   },
   logEnabled: false,
   since: null,
@@ -42,7 +44,11 @@ let tabId = null;
 let pageStatus = { counts: emptyCounts(), removed: 0 };
 
 function emptyCounts() {
-  return { products: 0, banners: 0, carousels: 0, display: 0, house: 0 };
+  const counts = {};
+  engine.CATEGORIES.forEach(function (key) {
+    counts[key] = 0;
+  });
+  return counts;
 }
 
 function formatSince(iso) {
@@ -110,21 +116,37 @@ async function activeTab() {
 
 function hostFromUrl(url) {
   try {
-    return engine.retailHost(new URL(url).hostname);
+    return engine.pageHost(new URL(url).hostname);
   } catch (err) {
     return null;
   }
+}
+
+function siteFromUrl(url) {
+  try {
+    return engine.siteFor(new URL(url).hostname);
+  } catch (err) {
+    return null;
+  }
+}
+
+function showRows(site) {
+  document.querySelectorAll(".cats li[data-site]").forEach(function (row) {
+    row.hidden = row.dataset.site !== site;
+  });
 }
 
 async function refreshPage() {
   const tab = await activeTab();
   tabId = tab && tab.id;
   const host = tab && hostFromUrl(tab.url);
-  hostEl.textContent = host || "Not on Amazon";
+  const site = tab && siteFromUrl(tab.url);
+  hostEl.textContent = host || "Not a supported page";
+  showRows(site || "");
   if (!host || tabId == null) {
     pageStatus = { counts: emptyCounts(), removed: 0 };
     noteEl.hidden = !tab || !tab.url || !/^https?:/i.test(tab.url);
-    noteEl.textContent = host ? "" : "Open an Amazon search or product page.";
+    noteEl.textContent = host ? "" : "Open an Amazon or LinkedIn page.";
     render();
     return;
   }
@@ -137,7 +159,7 @@ async function refreshPage() {
   } catch (err) {
     pageStatus = { counts: emptyCounts(), removed: 0 };
     noteEl.hidden = false;
-    noteEl.textContent = "Refresh this Amazon tab so Unsponsored can attach.";
+    noteEl.textContent = "Refresh this tab so Unsponsored can attach.";
   }
   render();
 }
@@ -170,7 +192,7 @@ document.querySelector("#flash").addEventListener("click", async function () {
     await chrome.tabs.sendMessage(tabId, { type: "unsponsored:flash" });
   } catch (err) {
     noteEl.hidden = false;
-    noteEl.textContent = "Refresh this Amazon tab, then try the outline again.";
+    noteEl.textContent = "Refresh this tab, then try the outline again.";
   }
 });
 
@@ -201,7 +223,10 @@ if (!globalThis.chrome || !chrome.storage || !chrome.runtime || !chrome.tabs) {
 chrome.runtime.onMessage.addListener(function (message) {
   if (!message || message.type !== "unsponsored:status") return;
   pageStatus = message;
-  if (message.host) hostEl.textContent = message.host;
+  if (message.host) {
+    hostEl.textContent = message.host;
+    showRows(engine.siteFor(message.host) || "");
+  }
   render();
 });
 
@@ -233,7 +258,11 @@ chrome.storage.local.get(null, function (stored) {
   if (data.since == null) patch.since = settings.since;
   if (data.mode == null) patch.mode = settings.mode;
   if (data.enabled == null) patch.enabled = settings.enabled;
-  if (data.categories == null) patch.categories = settings.categories;
+  const mergedCategories = Object.assign({}, DEFAULTS.categories, data.categories);
+  settings.categories = mergedCategories;
+  if (!data.categories || JSON.stringify(mergedCategories) !== JSON.stringify(data.categories)) {
+    patch.categories = mergedCategories;
+  }
   if (data.logEnabled == null) patch.logEnabled = settings.logEnabled;
   if (Object.keys(patch).length) chrome.storage.local.set(patch);
   render();

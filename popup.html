@@ -20,7 +20,7 @@
       <div id="host" class="host">amazon.com</div>
       <div class="sub">This page</div>
       <ul class="cats">
-        <li>
+        <li data-site="amazon">
           <label>
             <input type="checkbox" data-cat="products" checked />
             <span>Sponsored products</span>
@@ -28,7 +28,7 @@
           <span class="leader"></span>
           <span class="count" data-count="products">0</span>
         </li>
-        <li>
+        <li data-site="amazon">
           <label>
             <input type="checkbox" data-cat="banners" checked />
             <span>Brand banners and video</span>
@@ -36,7 +36,7 @@
           <span class="leader"></span>
           <span class="count" data-count="banners">0</span>
         </li>
-        <li>
+        <li data-site="amazon">
           <label>
             <input type="checkbox" data-cat="carousels" checked />
             <span>Sponsored carousels</span>
@@ -44,7 +44,7 @@
           <span class="leader"></span>
           <span class="count" data-count="carousels">0</span>
         </li>
-        <li>
+        <li data-site="amazon">
           <label>
             <input type="checkbox" data-cat="display" checked />
             <span>Display ads</span>
@@ -52,13 +52,29 @@
           <span class="leader"></span>
           <span class="count" data-count="display">0</span>
         </li>
-        <li>
+        <li data-site="amazon">
           <label>
             <input type="checkbox" data-cat="house" />
             <span>Amazon house-brand promos</span>
           </label>
           <span class="leader"></span>
           <span class="count" data-count="house">0</span>
+        </li>
+        <li data-site="linkedin" hidden>
+          <label>
+            <input type="checkbox" data-cat="feed" checked />
+            <span>Promoted posts</span>
+          </label>
+          <span class="leader"></span>
+          <span class="count" data-count="feed">0</span>
+        </li>
+        <li data-site="linkedin" hidden>
+          <label>
+            <input type="checkbox" data-cat="rail" checked />
+            <span>Right-rail ads</span>
+          </label>
+          <span class="leader"></span>
+          <span class="count" data-count="rail">0</span>
         </li>
       </ul>
       <div class="removed">
@@ -97,6 +113,7 @@
     </section>
     <p id="note" class="note" hidden></p>
     <script src="engine.js"></script>
+    <script src="linkedin.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>
