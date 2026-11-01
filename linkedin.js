@@ -84,8 +84,19 @@
     return false;
   }
 
+  const RAIL = "aside, .scaffold-layout__aside, [aria-label='Aside']";
+  const FEED_ARTICLE = "article.main-feed-activity-card, article[data-id='main-feed-card']";
+
+  function isRailContext(el) {
+    return !!(el && el.closest && el.closest(RAIL));
+  }
+
+  function hasSiteFooter(el) {
+    return clean(el && el.textContent).indexOf("LinkedIn Corporation") !== -1;
+  }
+
   function feedCard(label) {
-    if (label.closest("aside")) return null;
+    if (isRailContext(label)) return null;
     const mainFeed = label.closest("[data-testid='mainFeed'], [data-test-id='mainFeed']");
     if (mainFeed) {
       const item = label.closest("[role='listitem']");
@@ -93,11 +104,27 @@
     }
     const listed = label.closest("li.feed-item");
     if (listed) return listed;
-    return label.closest("article.main-feed-activity-card");
+    const article = label.closest(FEED_ARTICLE);
+    if (article) return article;
+    return climbFeed(label);
+  }
+
+  function climbFeed(label) {
+    let el = label;
+    const body = label.ownerDocument && label.ownerDocument.body;
+    while (el.parentElement && el.parentElement !== body) {
+      const parent = el.parentElement;
+      if (parent.matches("main, [role='list'], [data-testid='mainFeed'], [data-test-id='mainFeed']")) break;
+      if (isRailContext(parent) && !isRailContext(el)) break;
+      const cards = parent.querySelectorAll(FEED_ARTICLE + ", [role='listitem'], li.feed-item");
+      if (cards.length > 1) break;
+      el = parent;
+    }
+    return el === label ? null : el;
   }
 
   function railCard(label) {
-    const aside = label.closest("aside");
+    const aside = label.closest(RAIL);
     if (!aside) return null;
     if (label.closest("#feedRightNavGamesComponentRef")) return null;
     let el = label;
@@ -106,6 +133,7 @@
       if (parent.id === "feedRightNavGamesComponentRef") return null;
       if (parent.querySelector("#feedRightNavGamesComponentRef")) break;
       if (hasNewsHeading(parent)) break;
+      if (hasSiteFooter(parent) && !hasSiteFooter(el)) break;
       el = parent;
     }
     if (!el || el === aside || el.id === "feedRightNavGamesComponentRef") return null;
@@ -175,13 +203,14 @@
     });
 
     if (allowFeed) {
-      scope.querySelectorAll("[data-is-sponsored]").forEach(function (el) {
-        if (el.closest("aside") || el.closest(SKIP)) return;
-        const card = el.closest("li.feed-item, article.main-feed-activity-card, [role='listitem']") || el;
-        if (card.closest("aside") || card.closest(SKIP)) return;
+      scope.querySelectorAll("[data-is-sponsored], [data-sponsored-tracking-url]").forEach(function (el) {
+        if (isRailContext(el) || el.closest(SKIP)) return;
+        const card =
+          el.closest("li.feed-item, " + FEED_ARTICLE + ", [role='listitem']") || el;
+        if (isRailContext(card) || card.closest(SKIP)) return;
         const mainFeed = card.closest("[data-testid='mainFeed'], [data-test-id='mainFeed']");
         const known =
-          card.matches("li.feed-item, article.main-feed-activity-card") ||
+          card.matches("li.feed-item, " + FEED_ARTICLE) ||
           (mainFeed && card.getAttribute("role") === "listitem");
         if (!known) return;
         add(card, "feed");

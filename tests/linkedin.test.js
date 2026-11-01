@@ -145,6 +145,48 @@ test("Promoted by prefix and a German label still count", function () {
   assert.equal(found[1].title, "Ada Lovelace");
 });
 
+test("for you feed card and a right-column Ad are units, organic posts are not", function () {
+  const html = `
+    <main>
+      <section>
+        <p>John and millions more use Premium</p>
+        <button>Reactivate now</button>
+      </section>
+      <article data-id="main-feed-card">
+        <a href="/company/lineos">Lineos</a>
+        <p componentkey="actor-meta">824 followers</p>
+        <p componentkey="actor-sub">Promoted</p>
+        <p>A taxonomy mismatch two days before filing is not bad luck.</p>
+      </article>
+      <article data-id="main-feed-card">
+        <a href="/in/chamath">Chamath Palihapitiya</a>
+        <p>A pricing shift that will make the AI market explode</p>
+      </article>
+    </main>
+    <div class="scaffold-layout__aside">
+      <div class="ad-card">
+        <span>Ad</span>
+        <p>AI that works inside your model.</p>
+        <button>See how</button>
+      </div>
+      <div>About Accessibility Help Center LinkedIn Corporation © 2026</div>
+    </div>`;
+  const found = unitsFrom(html, "https://www.linkedin.com/feed/foryou/");
+  assert.equal(found.length, 2);
+  const feed = found.filter(function (unit) {
+    return unit.category === "feed";
+  });
+  const rail = found.filter(function (unit) {
+    return unit.category === "rail";
+  });
+  assert.equal(feed.length, 1);
+  assert.equal(feed[0].title, "Lineos");
+  assert.equal(feed[0].el.getAttribute("data-id"), "main-feed-card");
+  assert.equal(rail.length, 1);
+  assert.equal(rail[0].el.className, "ad-card");
+  assert.equal(rail[0].el.textContent.indexOf("LinkedIn Corporation"), -1);
+});
+
 test("linkedin log row keeps the author and leaves asin empty", function () {
   const html = `
     <div data-testid="mainFeed" role="list">
